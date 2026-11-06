@@ -42,7 +42,7 @@ if (navToggle && mainNav) {
   });
 
   window.addEventListener('resize', () => {
-    if (window.innerWidth > 760) {
+    if (window.innerWidth > 1050) {
       closeNavigation();
     } else if (navToggle.getAttribute('aria-expanded') === 'true') {
       updateMenuPosition();
