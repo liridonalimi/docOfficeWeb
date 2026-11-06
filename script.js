@@ -67,3 +67,101 @@ updatePracticeStatus();
 
 const year = document.querySelector('#year');
 if (year) year.textContent = String(new Date().getFullYear());
+
+
+function animateControl(control) {
+  control.classList.remove('is-activating');
+  void control.offsetWidth;
+  control.classList.add('is-activating');
+  window.setTimeout(() => control.classList.remove('is-activating'), 300);
+}
+
+function announcePhoneAction() {
+  window.clearTimeout(toastTimer);
+  actionToast.textContent = 'Telefon-App wird geöffnet …';
+  actionToast.classList.add('is-visible');
+  toastTimer = window.setTimeout(() => actionToast.classList.remove('is-visible'), 1800);
+}
+
+function showDestination(target) {
+  const arrivalElement = target.querySelector('h1, h2') || target;
+  arrivalElement.classList.remove('destination-arrival');
+  void arrivalElement.offsetWidth;
+  arrivalElement.classList.add('destination-arrival');
+  window.setTimeout(() => arrivalElement.classList.remove('destination-arrival'), 950);
+
+  const hadTabindex = target.hasAttribute('tabindex');
+  if (!hadTabindex) target.setAttribute('tabindex', '-1');
+  target.focus({ preventScroll: true });
+  if (!hadTabindex) {
+    target.addEventListener('blur', () => target.removeAttribute('tabindex'), { once: true });
+  }
+}
+
+function navigateToTarget(target, hash) {
+  const run = ++navigationRun;
+  const header = document.querySelector('.site-header');
+  const headerOffset = (header?.offsetHeight || 0) + 18;
+  const start = window.scrollY;
+  const targetY = Math.max(0, target.getBoundingClientRect().top + start - headerOffset);
+  const distance = targetY - start;
+
+  if (reducedMotion.matches || Math.abs(distance) < 2) {
+    window.scrollTo({ top: targetY, behavior: 'auto' });
+    history.pushState(null, '', hash);
+    showDestination(target);
+    return;
+  }
+
+  const duration = Math.min(1050, Math.max(520, 420 + Math.abs(distance) * .16));
+  const startedAt = performance.now();
+  document.documentElement.classList.add('is-scripted-scrolling');
+  travelProgress.classList.add('is-active');
+
+  const easeInOutCubic = (progress) => progress < .5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+  const step = (now) => {
+    if (run !== navigationRun) return;
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const easedProgress = easeInOutCubic(progress);
+    window.scrollTo({ top: start + distance * easedProgress, behavior: 'instant' });
+    travelProgress.style.transform = `scaleX(${progress})`;
+
+    if (progress < 1) {
+      requestAnimationFrame(step);
+      return;
+    }
+
+    document.documentElement.classList.remove('is-scripted-scrolling');
+    history.pushState(null, '', hash);
+    showDestination(target);
+    window.setTimeout(() => {
+      travelProgress.classList.remove('is-active');
+      travelProgress.style.transform = 'scaleX(0)';
+    }, 180);
+  };
+
+  requestAnimationFrame(step);
+}
+
+document.querySelectorAll('a[href^="#"]:not(.skip-link)').forEach((link) => {
+  link.addEventListener('click', (event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const hash = link.getAttribute('href');
+    if (!hash || hash === '#') return;
+    const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+    if (!target) return;
+    event.preventDefault();
+    animateControl(link);
+    navigateToTarget(target, hash);
+  });
+});
+
+document.querySelectorAll('a[href^="tel:"]').forEach((link) => {
+  link.addEventListener('click', () => {
+    animateControl(link);
+    announcePhoneAction();
+  });
+});
